@@ -3,6 +3,9 @@ import scipy.special
 import cmath
 import math
 
+import matplotlib.pyplot as plt
+from matplotlib.animation import FuncAnimation
+
 
 
 free_plane = (0, 0, 1, 1)
@@ -10,10 +13,10 @@ grid_size = (20, 20)
 packet_width_x = 0.1
 packet_width_y = 0.2
 direction_vector = 10000
-time_step = 0.0001
+time_step = 0.1
 num_of_frames = 100
 num_of_partitions_H = 800
-order_of_chebyshev_poly = 32
+order_of_chebyshev_poly = 64
 
 free_plane_length = (free_plane[2] - free_plane[0], free_plane[3] - free_plane[1])
 mesh_step = free_plane_length[0] / grid_size[0]
@@ -46,7 +49,7 @@ def get_discretized_init_wave_function():
             results.append(initial_wave_normalized(i * mesh_step, j * mesh_step))
     # results = np.transpose(np.array(results))
     # print([abs(x)**2 for x in list(results)])
-    return results
+    return np.array(results)
 
 def flatten_hamiltionian(i, j):
     rowH = np.zeros((grid_size[0], grid_size[1]))
@@ -94,4 +97,29 @@ def get_evolution_operator(t):
 def verify_evolution_operator(U):
     print(np.linalg.det(U * U.conj().transpose()))
 
-verify_evolution_operator(get_evolution_operator(time_step * 10000))
+def get_wave_distribution(t):
+    U = get_evolution_operator(t)
+    verify_evolution_operator(U)
+    return np.reshape(U.dot(get_discretized_init_wave_function()), (grid_size[0], grid_size[1]))
+
+def get_probability_distribution(t):
+    W = get_wave_distribution(t)
+    return np.abs(W)**2
+
+
+xs = np.linspace(free_plane[0], free_plane[2], grid_size[0])
+ys = np.linspace(free_plane[1], free_plane[3], grid_size[1])
+xs, ys = np.meshgrid(xs, ys)
+
+# draw the figure
+def update_plot(frame_number):
+    ax.plot_surface(xs, ys, get_probability_distribution(frame_number * time_step), cmap="coolwarm")
+
+fig = plt.figure()
+ax = fig.add_subplot(111, projection='3d')
+
+# plot = [ax.plot_surface(xs, ys, get_probability_distribution(0), color='0.75', rstride=1, cstride=1)]
+ax.plot_surface(xs, ys, get_probability_distribution(0), color='0.75', rstride=1, cstride=1, cmap="coolwarm")
+ani = FuncAnimation(fig, update_plot, num_of_frames, interval=1000/60)
+
+plt.show()
