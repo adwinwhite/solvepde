@@ -9,12 +9,12 @@ from matplotlib.animation import FuncAnimation
 
 
 free_plane = (0, 0, 1, 1)
-grid_size = (20, 20)
+grid_size = (32, 32)
 packet_width_x = 0.1
-packet_width_y = 0.2
+packet_width_y = 0.1
 direction_vector = 10
-time_step = 0.001
-num_of_frames = 100
+time_step = 0.00001
+num_of_frames = 1000000
 max_order_of_chebyshev_poly = 1000000
 allowed_error = 10**(-13)
 
@@ -28,7 +28,7 @@ def initial_wave_unnormalized(x, y):
     # with width 0.01 and direction vector k=1
     if x < free_plane[0] or x > free_plane[2] or y < free_plane[1] or y > free_plane[3]:
         return 0
-    return cmath.exp(-(x-0.5)**2/4/packet_width_x**2 -(y - 0.5)**2/4/packet_width_y**2 + x*direction_vector*1j)
+    return cmath.exp(-(x-0.5)**2/4/packet_width_x**2 -(y - 0.5)**2/4/packet_width_y**2 + x*direction_vector*0j)
 
 def get_normalization_factor():
     integral = 0
@@ -51,7 +51,7 @@ def get_discretized_init_wave_function():
     return np.array(results)
 
 def get_potential(x, y):
-    return x * 10000 + y * 10000
+    return 10000/ ((x-0.5)**2 + (y-0.5)**2 + 1)
 
 def flatten_hamiltionian(i, j):
     rowH = np.zeros((grid_size[0], grid_size[1]))
@@ -137,14 +137,17 @@ xs, ys = np.meshgrid(xs, ys)
 
 # draw the figure
 def update_plot(frame_number):
+    ax.clear()
+    ax.set_zlim(0, 1)
+    ax.invert_xaxis()
     ax.plot_surface(xs, ys, get_probability_distribution(frame_number * time_step), cmap="coolwarm")
+
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
-ax.set_zlim(0, 1)
-ax.invert_xaxis()
 
-ax.plot_surface(xs, ys, get_probability_distribution(0), color='0.75', rstride=1, cstride=1, cmap="coolwarm")
+
+# ax.plot_surface(xs, ys, get_probability_distribution(0), color='0.75', rstride=1, cstride=1, cmap="coolwarm")
 ani = FuncAnimation(fig, update_plot, num_of_frames, interval=1000/60)
 
 plt.show()
