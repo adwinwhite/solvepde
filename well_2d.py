@@ -10,9 +10,9 @@ from matplotlib.animation import FuncAnimation
 
 
 grid_size = (40, 40)
-packet_width_x = 0.02
-packet_width_y = 0.02
-direction_vector = 0
+packet_width_x = 0.1
+packet_width_y = 0.1
+direction_vector = 10000
 time_step = 0.0001
 mesh_step = 0.025
 num_of_frames = 1000000
