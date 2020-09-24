@@ -103,7 +103,8 @@ def get_potential(x):
     # else:
     #     return 0
     # return (1-x) * 100000
-    return 100000 / ((x - 0.5)**2 + 0.01)
+    # return 100000 / ((x - 0.5)**2 + 0.01)
+    return x * 100000
 
 def get_hamiltonian():
     exph0 = np.identity(grid_size) * (-2)

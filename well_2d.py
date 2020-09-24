@@ -10,13 +10,13 @@ from matplotlib.animation import FuncAnimation
 
 
 grid_size = (40, 40)
-packet_width_x = 0.05
-packet_width_y = 0.05
+packet_width_x = 0.02
+packet_width_y = 0.02
 direction_vector = 0
 time_step = 0.0001
 mesh_step = 0.025
 num_of_frames = 1000000
-max_order_of_chebyshev_poly = 1000000
+max_order_of_chebyshev_poly = 100000
 allowed_error = 0
 
 free_plane = (0, 0, grid_size[0] * mesh_step, grid_size[1] * mesh_step)
@@ -52,21 +52,25 @@ def get_discretized_init_wave_function():
     return np.array(results)
 
 def get_potential(x, y):
-    # return 100000 * ((x-0.)**2 + (y-0.)**2 + 1)
+    # return 10 * ((x-0.5)**2 + (y-0.5)**2 + 0.0001)
     # if x > 0.4 and x < 0.6 and y > 0.4 and y < 0.6:
-    #     return -10**4
+    #     return 10**4
     # else:
     #     return 0
-    # if (x > 0.6 * free_plane[2] or x < 0.8 * free_plane[2]) and (y < 0.499 * free_plane[3] or y > 0.501 * free_plane[3]):
-    #     return 1000
+    # if (x > 0.6 * free_plane[2] or x < 0.7 * free_plane[2]) and (y < 0.4 * free_plane[3] or y > 0.6 * free_plane[3]):
+    #     return 10000
+    return 0
     # if (x - (free_plane[0] + free_plane_length[0] * 0.5))**2 + (x - (free_plane[1] + free_plane_length[1] * 0.5))**2 < 0.04:
-    #     return 1000
+    #     return 10000
     # return 0
     # if (x - 0.01)**2 + (y - 0.01)**2 < 0.25:
     #     return -10000
     # else:
     #     return 0
-    return x * 10000
+    # return x * 10000
+    # if x > 0.5 and y > 0.5:
+    #     return -10000
+    # return 0;
 
 def flatten_hamiltionian(i, j):
     rowH = np.zeros((grid_size[1], grid_size[0]))
@@ -138,7 +142,7 @@ def propagate_wave():
 
 
 def verify_normalization(dis):
-    integral = sum(dis.flatten()) * mesh_step**2
+    integral = sum(dis.flatten())
     print(integral)
     return integral
 
@@ -156,11 +160,13 @@ xs, ys = np.meshgrid(xs, ys)
 # draw the figure
 def update_plot(frame_number):
     ax.clear()
-    ax.set_zlim(0, 100)
+    ax.set_zlim(0, 0.1)
     ax.set_xlim(free_plane[0], free_plane[2])
     ax.set_ylim(free_plane[1], free_plane[3])
+    ax.set_xlabel("x")
+    ax.set_ylabel("y")
     ax.invert_xaxis()
-    dis = np.reshape([abs(x)**2 for x in propagate_wave()], (grid_size[1], grid_size[0]))
+    dis = np.reshape([abs(x)**2 * mesh_step**2 for x in propagate_wave()], (grid_size[1], grid_size[0]))
     verify_normalization(dis)
     ax.plot_surface(xs, ys, dis, cmap="coolwarm")
 
