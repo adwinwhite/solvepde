@@ -12,11 +12,11 @@ free_plane = (0, 0, 1, 1)
 grid_size = (32, 32)
 packet_width_x = 0.1
 packet_width_y = 0.1
-direction_vector = 10
-time_step = 0.00001
+direction_vector = 0
+time_step = 0.0001
 num_of_frames = 1000000
 max_order_of_chebyshev_poly = 1000000
-allowed_error = 10**(-13)
+allowed_error = 10**(-26)
 
 free_plane_length = (free_plane[2] - free_plane[0], free_plane[3] - free_plane[1])
 mesh_step = free_plane_length[0] / grid_size[0]
@@ -28,7 +28,7 @@ def initial_wave_unnormalized(x, y):
     # with width 0.01 and direction vector k=1
     if x < free_plane[0] or x > free_plane[2] or y < free_plane[1] or y > free_plane[3]:
         return 0
-    return cmath.exp(-(x-0.5)**2/4/packet_width_x**2 -(y - 0.5)**2/4/packet_width_y**2 + x*direction_vector*0j)
+    return cmath.exp(-(x-0.5)**2/4/packet_width_x**2 -(y - 0.5)**2/4/packet_width_y**2 + x*direction_vector*1j)
 
 def get_normalization_factor():
     integral = 0
@@ -51,7 +51,16 @@ def get_discretized_init_wave_function():
     return np.array(results)
 
 def get_potential(x, y):
-    return 10000/ ((x-0.5)**2 + (y-0.5)**2 + 1)
+    # return 100000 * ((x-0.)**2 + (y-0.)**2 + 1)
+    # if x > 0.4 and x < 0.6 and y > 0.4 and y < 0.6:
+    #     return -10**4
+    # else:
+    #     return 0
+    # return 0
+    if (x - 0.01)**2 + (y - 0.01)**2 < 0.25:
+        return -10000
+    else:
+        return 0
 
 def flatten_hamiltionian(i, j):
     rowH = np.zeros((grid_size[0], grid_size[1]))
@@ -122,7 +131,10 @@ def get_probability_distribution(t):
     W = get_wave_distribution(t)
     return np.abs(W)**2
 
-
+def verify_normalization(dis):
+    integral = sum(dis.flatten()) * mesh_step
+    print(integral)
+    return integral
 
 # for i in range(0, 1000000, 16):
 #     res = verify_evolution_operator(get_evolution_operator(time_step * i))
@@ -140,7 +152,9 @@ def update_plot(frame_number):
     ax.clear()
     ax.set_zlim(0, 1)
     ax.invert_xaxis()
-    ax.plot_surface(xs, ys, get_probability_distribution(frame_number * time_step), cmap="coolwarm")
+    dis = get_probability_distribution(frame_number * time_step)
+    verify_normalization(dis)
+    ax.plot_surface(xs, ys, dis, cmap="coolwarm")
 
 
 fig = plt.figure()
