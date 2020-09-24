@@ -19,7 +19,7 @@ time_step = 0.000001
 num_of_frames = 10000
 num_of_partitions_H = 800
 max_order_of_chebyshev_poly = 1000000
-allowed_error = 10**(-13)
+allowed_error = 0
 
 free_line_length = free_line[1] - free_line[0]
 mesh_step = free_line_length / grid_size
@@ -30,7 +30,6 @@ def initial_wave_unnormalized(x):
     if x < free_line[0] or x > free_line[1]:
         return 0
     return cmath.exp(-(x-0.5)**2/4/packet_width**2 + x*direction_vector*1j)
-    # return cmath.exp(-(x-0.5)**2/4/packet_width**2)
 
 def get_normalization_factor():
     integral = 0
@@ -49,8 +48,6 @@ def get_discretized_init_wave_function():
     for i in range(grid_size):
         results.append(initial_wave_normalized(i * mesh_step))
     results = np.array(results)
-    # print(results.dtype)
-    # print([abs(x)**2 for x in list(results)])
     return results
 
 
@@ -100,11 +97,11 @@ def T_tilde_matrix(order, B):
     return result
 
 def get_potential(x):
-    # if x > 0.4 and x < 0.6:
-    #     return 10000
-    # else:
-    #     return 0
-    return 0
+    if x < 0.4 or x > 0.6:
+        return -10000
+    else:
+        return 0
+    # return x * 100000
 
 def get_hamiltonian():
     exph0 = np.identity(grid_size) * (-2)
@@ -118,6 +115,29 @@ def get_hamiltonian():
 
 H = get_hamiltonian()
 max_entry = np.amax(np.abs(H))
+def get_evolution_operator_chebyshev_one_timestep():
+    z = -time_step * max_entry
+    B = H / max_entry
+    # evolution_operator = np.identity(operator_size) * scipy.special.jv(0, z) + 2 * sum([scipy.special.jv(i, z) * T_tilde_matrix(i, B) for i in range(1, order_of_chebyshev_poly)])
+    evolution_operator = np.zeros((grid_size, grid_size), dtype=np.complex128)
+    jv = 1
+    i = 1
+    while abs(jv) > allowed_error and i <= max_order_of_chebyshev_poly:
+        jv = scipy.special.jv(i, z)
+        evolution_operator += jv * T_tilde_matrix(i, B)
+        i += 1
+    evolution_operator = evolution_operator * 2 + np.identity(grid_size, dtype=np.complex128) * scipy.special.jv(0, z)
+    print("{} : {}".format(i, abs(jv)))
+    return evolution_operator
+
+evolution_operator = get_evolution_operator_chebyshev_one_timestep()
+current_wave = get_discretized_init_wave_function()
+
+def propagate():
+    global current_wave
+    current_wave = evolution_operator.dot(current_wave)
+    return current_wave
+
 def get_evolution_operator_chebyshev(t):
     z = -t * max_entry
     B = H / max_entry
@@ -137,14 +157,17 @@ def get_discretized_wave_function(t):
     res = get_evolution_operator_chebyshev(t).dot(get_discretized_init_wave_function())
     return res
 
-def get_probability_distribution(t):
-    wave = get_discretized_wave_function(t)
+def next_probability_distribution():
+    wave = propagate()
     ps = [abs(x)**2 for x in wave]
     res = [x.real for x in wave]
     ims = [x.imag for x in wave]
     return ps, res, ims
 
-
+def verify_normalization(dis):
+    integral = sum(dis) * mesh_step
+    print(integral)
+    return integral
 
 
 # draw the figure
@@ -154,7 +177,8 @@ xs = np.linspace(free_line[0], free_line[1], grid_size)
 
 def update(frame):
     ax.clear()
-    prob_dis, real_dis, imag_dis = get_probability_distribution(frame * time_step)
+    prob_dis, real_dis, imag_dis = next_probability_distribution()
+    verify_normalization(prob_dis)
     ax.set_xlim(free_line[0], free_line[1])
     ax.set_ylim(0, 10)
     ax.plot(xs, prob_dis, 'g')
