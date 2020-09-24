@@ -136,6 +136,7 @@ current_wave = get_discretized_init_wave_function()
 def propagate():
     global current_wave
     current_wave = evolution_operator.dot(current_wave)
+    current_wave = normalized_wave(current_wave)
     return current_wave
 
 def get_evolution_operator_chebyshev(t):
@@ -168,6 +169,11 @@ def verify_normalization(dis):
     integral = sum(dis) * mesh_step
     print(integral)
     return integral
+
+def normalized_wave(wave):
+    integral = sum([abs(x)**2 for x in wave]) * mesh_step
+    factor = math.sqrt(1/integral)
+    return wave * factor
 
 
 # draw the figure
