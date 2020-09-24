@@ -14,7 +14,7 @@ import time
 free_line = (0, 1)
 grid_size = 256
 packet_width = 0.04
-direction_vector = 100
+direction_vector = 0
 time_step = 0.000001
 num_of_frames = 10000
 num_of_partitions_H = 800
@@ -96,12 +96,14 @@ def T_tilde_matrix(order, B):
     T_tilde_matrices.update({order:result})
     return result
 
+
 def get_potential(x):
-    if x < 0.4 or x > 0.6:
-        return -10000
-    else:
-        return 0
-    # return x * 100000
+    # if x < 0.4 or x > 0.6:
+    #     return 10000
+    # else:
+    #     return 0
+    # return (1-x) * 100000
+    return 100000 / ((x - 0.5)**2 + 0.01)
 
 def get_hamiltonian():
     exph0 = np.identity(grid_size) * (-2)
