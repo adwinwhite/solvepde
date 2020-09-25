@@ -29,28 +29,21 @@ complex<double> initialWaveUnnormalized(const double &x, const double &y) {
     }
 }
 
-double getInitialNormalizationFactor() {
-    double integral = 0.;
-    for (size_t j = 0; j < GRID_SIZE[1]; ++j) {
-        for (size_t i = 0; j < GRID_SIZE[0]; ++i) {
-            integral += pow(abs(initialWaveUnnormalized(i * MESH_STEP, j *MESH_STEP)), 2);
-        }
-    }
-    integral *= pow(MESH_STEP, 2);
-    return sqrt(1. / integral);
-}
-
-complex<double> initialWaveNormalized(const double &x, const double &y) {
-    return initialWaveUnnormalized(x, y) * getInitialNormalizationFactor();
+VectorXcd normalizeWave(VectorXcd &wave) {
+    double factor = 1. / (wave.norm() * MESH_STEP);
+    wave *= factor;
+    return wave;
 }
 
 VectorXcd getDiscretizedInitialWave() {
     VectorXcd result(OPERATOR_SIZE);
     for (size_t j = 0; j < GRID_SIZE[1]; ++j) {
         for (size_t i = 0; i < GRID_SIZE[0]; ++i) {
-            result[j * GRID_SIZE[1] + i] = initialWaveNormalized(i * MESH_STEP, j * MESH_STEP);
+            result[j * GRID_SIZE[1] + i] = initialWaveUnnormalized(i * MESH_STEP, j * MESH_STEP);
+            cout << "pong" << endl;
         }
     }
+    normalizeWave(result);
     return result;
 }
 
@@ -107,18 +100,13 @@ MatrixXcd getEvolutionOperatorForOneTimestep() {
         tildeTMatrices[0] = tildeTMatrices[1];
         tildeTMatrices[1] = nextTildeT;
         ++i;
-        cout << i << endl;
     }
     evolutionOperator *= 2.0;
     evolutionOperator += MatrixXcd::Identity(OPERATOR_SIZE, OPERATOR_SIZE) * cyl_bessel_j(0, z);
     return evolutionOperator;
 }
 
-VectorXcd normalizeWave(VectorXcd &wave) {
-    double factor = 1. / (wave.norm() * MESH_STEP);
-    wave *= factor;
-    return wave;
-}
+
 
 const auto evolutionOperator = getEvolutionOperatorForOneTimestep();
 VectorXcd currentWave;
