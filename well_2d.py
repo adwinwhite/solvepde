@@ -10,9 +10,9 @@ from matplotlib.animation import FuncAnimation
 
 
 grid_size = (40, 40)
-packet_width_x = 0.1
-packet_width_y = 0.1
-direction_vector = 10000
+packet_width_x = 0.04
+packet_width_y = 0.04
+direction_vector = 100
 time_step = 0.0001
 mesh_step = 0.025
 num_of_frames = 1000000
@@ -59,18 +59,18 @@ def get_potential(x, y):
     #     return 0
     # if (x > 0.6 * free_plane[2] or x < 0.7 * free_plane[2]) and (y < 0.4 * free_plane[3] or y > 0.6 * free_plane[3]):
     #     return 10000
-    return 0
-    # if (x - (free_plane[0] + free_plane_length[0] * 0.5))**2 + (x - (free_plane[1] + free_plane_length[1] * 0.5))**2 < 0.04:
-    #     return 10000
     # return 0
-    # if (x - 0.01)**2 + (y - 0.01)**2 < 0.25:
+    # if (x - (free_plane[0] + free_plane_length[0] * 0.5))**2 + (x - (free_plane[1] + free_plane_length[1] * 0.5))**2 > 0.04 and (x - (free_plane[0] + free_plane_length[0] * 0.5))**2 + (x - (free_plane[1] + free_plane_length[1] * 0.5))**2 < 0.09:
     #     return -10000
+    # return 0
+    # if (x - 0.5)**2 + (y - 0.5)**2 < 0.09:
+    #     return 10000
     # else:
     #     return 0
     # return x * 10000
     # if x > 0.5 and y > 0.5:
     #     return -10000
-    # return 0;
+    return 0
 
 def flatten_hamiltionian(i, j):
     rowH = np.zeros((grid_size[1], grid_size[0]))
@@ -95,19 +95,32 @@ def get_hamiltonian():
             hamiltonian.append(flatten_hamiltionian(i, j))
     return np.array(hamiltonian)
 
-T_tilde_matrices = {}
-def T_tilde_matrix(order, B):
-    if order in T_tilde_matrices:
-        return T_tilde_matrices[order]
-    result = None
-    if order == 0:
-        result = np.identity(operator_size)
-    elif order == 1:
-        result = B * 1j
+# T_tilde_matrices = {}
+# def T_tilde_matrix(order, B):
+#     if order in T_tilde_matrices:
+#         return T_tilde_matrices[order]
+#     result = None
+#     if order == 0:
+#         result = np.identity(operator_size)
+#     elif order == 1:
+#         result = B * 1j
+#     else:
+#         result = B * 2j * T_tilde_matrix(order - 1, B) + T_tilde_matrix(order - 2, B)
+#     T_tilde_matrices.update({order:result})
+#     return result
+
+T_tilde_matrices = [None, np.identity(operator_size)]
+def next_T_tilde_matrix(B):
+    if T_tilde_matrices[0] is None:
+        T_tilde_matrices[0] = T_tilde_matrices[1]
+        T_tilde_matrices[1] = B * 1j
+        return T_tilde_matrices[1]
     else:
-        result = B * 2j * T_tilde_matrix(order - 1, B) + T_tilde_matrix(order - 2, B)
-    T_tilde_matrices.update({order:result})
-    return result
+        next_T_tilde = B * 2j * T_tilde_matrices[1] + T_tilde_matrices[0]
+        T_tilde_matrices[0] = T_tilde_matrices[1]
+        T_tilde_matrices[1] = next_T_tilde
+        return next_T_tilde
+
 
 H = get_hamiltonian()
 max_entry = np.amax(np.abs(H))
@@ -120,7 +133,7 @@ def get_evolution_operator_one_timestep():
     i = 1
     while abs(jv) > allowed_error and i <= max_order_of_chebyshev_poly:
         jv = scipy.special.jv(i, z)
-        evolution_operator += jv * T_tilde_matrix(i, B)
+        evolution_operator += jv * next_T_tilde_matrix(B)
         i += 1
     evolution_operator = evolution_operator * 2 + np.identity(operator_size, dtype=np.complex128) * scipy.special.jv(0, z)
     print("{} : {}".format(i, abs(jv)))
