@@ -3,12 +3,13 @@
 #include <cmath>
 #include <vector>
 #include <iostream>
+#include <chrono>
 
 using namespace Eigen;
 using namespace std;
 
 constexpr double PLANE[] = {0., 0., 1., 1.};
-constexpr size_t GRID_SIZE[] = {16, 16};
+constexpr size_t GRID_SIZE[] = {64, 64};
 constexpr double PACKET_SIZE[] = {0.1, 0.1};
 constexpr double PACKET_K = 1000.;
 constexpr double TIME_STEP = 0.001;
@@ -40,7 +41,6 @@ VectorXcd getDiscretizedInitialWave() {
     for (size_t j = 0; j < GRID_SIZE[1]; ++j) {
         for (size_t i = 0; i < GRID_SIZE[0]; ++i) {
             result[j * GRID_SIZE[1] + i] = initialWaveUnnormalized(i * MESH_STEP, j * MESH_STEP);
-            cout << "pong" << endl;
         }
     }
     normalizeWave(result);
@@ -82,27 +82,55 @@ MatrixXcd getHamiltonian() {
     return H;
 }
 
+size_t findProperApproximationOrder(double z) {
+    size_t upperBound = MAX_ORDER_OF_CHEBYSHEV_POLYNOMIAL;
+    size_t lowerBound = 0;
+    size_t middlePoint = (upperBound + lowerBound) / 2;
+    while (!(cyl_bessel_j(middlePoint, z) > ALLOWED_ERROR && cyl_bessel_j(middlePoint + 1, z) < ALLOWED_ERROR)) {
+        if (cyl_bessel_j(middlePoint, z) > ALLOWED_ERROR) {
+            lowerBound = middlePoint;
+        } else {
+            upperBound = middlePoint;
+        }
+        middlePoint = (lowerBound + upperBound) / 2;
+    }
+    return middlePoint + 1;
+}
+
 
 const auto H = getHamiltonian();
 const auto maxEntry = H.cwiseAbs().maxCoeff();
 MatrixXcd getEvolutionOperatorForOneTimestep() {
+    auto begin = chrono::system_clock::now();
     double z = TIME_STEP * maxEntry;
-    auto B = H / maxEntry;
+    auto B = -H / maxEntry;
     MatrixXcd evolutionOperator;
     evolutionOperator = MatrixXcd::Zero(OPERATOR_SIZE, OPERATOR_SIZE);
     complex<double> jv = 1;
-    size_t i = 1;
     vector<MatrixXcd> tildeTMatrices = {MatrixXcd::Identity(OPERATOR_SIZE, OPERATOR_SIZE), B * complex<double>(0., 1.)};
-    while (abs(jv) > ALLOWED_ERROR && i <= MAX_ORDER_OF_CHEBYSHEV_POLYNOMIAL) {
+    auto properOrder = findProperApproximationOrder(z);
+    for (size_t i = 1; i <= properOrder; ++i) {
         jv = cyl_bessel_j(i, z);
+        size_t count = 0;
+        for (size_t j = 0; j < OPERATOR_SIZE; ++j) {
+            for (size_t k = 0; k < OPERATOR_SIZE; ++k) {
+                if (tildeTMatrices[0](j, k) == 0.0) {
+                    count++;
+                }
+            }
+        }
+        cout << OPERATOR_SIZE * OPERATOR_SIZE - count << endl;
         evolutionOperator += jv * tildeTMatrices[0];
         auto nextTildeT = B * complex<double>(0., 2.) * tildeTMatrices[1] + tildeTMatrices[0];
         tildeTMatrices[0] = tildeTMatrices[1];
         tildeTMatrices[1] = nextTildeT;
-        ++i;
+        cout << i << endl;
     }
     evolutionOperator *= 2.0;
     evolutionOperator += MatrixXcd::Identity(OPERATOR_SIZE, OPERATOR_SIZE) * cyl_bessel_j(0, z);
+    auto end = chrono::system_clock::now();
+    chrono::duration<double> timeCost = end - begin;
+    cout << "init_minc : " << timeCost.count() << "s." << endl;
     return evolutionOperator;
 }
 

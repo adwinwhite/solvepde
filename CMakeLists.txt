@@ -6,4 +6,5 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_library(EIGEN_LIBRARY NAMES eigen)
-add_executable(solvepde  PropagateGaussianWavePacket.cpp)
+add_executable(PropagateGaussianWavePacket  PropagateGaussianWavePacket.cpp)
+target_compile_options(PropagateGaussianWavePacket PRIVATE -O3 -ffast-math -march=native -mtune=native)
