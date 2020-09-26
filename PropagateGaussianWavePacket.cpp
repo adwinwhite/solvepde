@@ -6,12 +6,13 @@
 #include <chrono>
 #include <omp.h>
 #include <algorithm>
+//#include "matplotlibcpp.h"
 
 using namespace Eigen;
 using namespace std;
 
 constexpr double PLANE[] = {0., 0., 1., 1.};
-constexpr size_t GRID_SIZE[] = {64, 64};
+constexpr size_t GRID_SIZE[] = {96, 64};
 constexpr double PACKET_SIZE[] = {0.1, 0.1};
 constexpr double PACKET_K = 1000.;
 constexpr double TIME_STEP = 0.001;
@@ -79,18 +80,18 @@ SparseMatrix<complex<double>> getHamiltonian() {
     for (long j = 0; j < GRID_SIZE[1]; ++j) {
         for (long i = 0; i < GRID_SIZE[0]; ++i) {
             //H.block<1, OPERATOR_SIZE>(j * GRID_SIZE[1] + i, 0) = flattenedRowHamiltionian(i, j).transpose();
-            H.insert(j * GRID_SIZE[1] + i, j * GRID_SIZE[1] + i) =  -4. / pow(MESH_STEP, 2) + getPotential(i * MESH_STEP, j * MESH_STEP);
+            H.insert(j * GRID_SIZE[0] + i, j * GRID_SIZE[0] + i) =  -4. / pow(MESH_STEP, 2) + getPotential(i * MESH_STEP, j * MESH_STEP);
             if (i + 1 < GRID_SIZE[0]) {
-                H.insert(j * GRID_SIZE[1] + i, j * GRID_SIZE[1] + i + 1) = 1. / pow(MESH_STEP, 2);
+                H.insert(j * GRID_SIZE[0] + i, j * GRID_SIZE[0] + i + 1) = 1. / pow(MESH_STEP, 2);
             }
             if (i - 1 >= 0) {
-                H.insert(j * GRID_SIZE[1] + i, j * GRID_SIZE[1] + i - 1) = 1. / pow(MESH_STEP, 2);
+                H.insert(j * GRID_SIZE[0] + i, j * GRID_SIZE[0] + i - 1) = 1. / pow(MESH_STEP, 2);
             }
             if (j + 1 < GRID_SIZE[1]) {
-                H.insert(j * GRID_SIZE[1] + i, (j + 1) * GRID_SIZE[1] + i) = 1. / pow(MESH_STEP, 2);
+                H.insert(j * GRID_SIZE[0] + i, (j + 1) * GRID_SIZE[0] + i) = 1. / pow(MESH_STEP, 2);
             }
             if (j - 1 >= 0) {
-                H.insert(j * GRID_SIZE[1] + i, (j - 1) * GRID_SIZE[1] + i) = 1. / pow(MESH_STEP, 2);
+                H.insert(j * GRID_SIZE[0] + i, (j - 1) * GRID_SIZE[0] + i) = 1. / pow(MESH_STEP, 2);
             }
         }
     }
@@ -161,6 +162,7 @@ SparseMatrix<complex<double>> getEvolutionOperatorForOneTimestep() {
     vector<SparseMatrix<complex<double>>> tildeTMatrices(properOrder + 1);
     for (size_t i = 0; i <= properOrder; ++i) {
         getTildeTSparseMatrix(i, B, tildeTMatrices);
+        cout << i << endl;
     }
     #pragma omp parallel for reduction(matrixAdd : evolutionOperator)
     for (size_t i = 1; i <= properOrder; ++i) {
@@ -212,22 +214,13 @@ VectorXcd propagateWave() {
 }
 
 int main() {
+    //namespace plt = matplotlibcpp;
+
+
     currentWave = getDiscretizedInitialWave();
     for (size_t i = 0; i < 1000; ++i) {
         propagateWave();
         cout << i << endl;
     }
     return 0;
-
-//    SparseMatrix<complex<double>> mat(10, 10);
-//    mat.setIdentity();
-//    VectorXcd vec(10);
-//    for (auto i = 0; i < 10; ++i) {
-//        vec(i) = i;
-//    }
-//    cout << mat.cols() << endl;
-//    cout << vec.rows() << endl;
-//    auto res = VectorXcd(mat * vec);
-//    cout << res << endl;
-//    return 0;
 }
