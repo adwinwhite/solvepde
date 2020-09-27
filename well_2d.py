@@ -5,7 +5,7 @@ import math
 
 
 import matplotlib
-matplotlib.use("Agg")
+# matplotlib.use("Agg")
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
@@ -14,14 +14,14 @@ from matplotlib.animation import FuncAnimation
 
 
 grid_size = (64, 64)
-packet_width_x = 0.05
-packet_width_y = 0.05
-direction_vector = 100000
+packet_width_x = 0.1
+packet_width_y = 0.1
+direction_vector = 10000
 time_step = 0.00001
 mesh_step = 1 / grid_size[0]
 num_of_frames = 1000
 max_order_of_chebyshev_poly = 100000
-allowed_error = 10**(-13)
+allowed_error = 0
 
 free_plane = (0, 0, grid_size[0] * mesh_step, grid_size[1] * mesh_step)
 free_plane_length = (free_plane[2] - free_plane[0], free_plane[3] - free_plane[1])
@@ -49,8 +49,8 @@ def get_potential(x, y):
     # if x > 0.5 and y > 0.5:
     #     return -10000
     # return x * 100000
-    if (x > 0.5 and x < 0.7) and (y < 0.4 or y > 0.6):
-        return 10000
+    # if (x > 0.5 and x < 0.7) and (y < 0.4 or y > 0.6):
+    #     return 10000
     return 0
 
 def initial_wave_unnormalized(x, y):
@@ -174,7 +174,7 @@ writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 
-ani = FuncAnimation(fig, update_plot, num_of_frames, interval=1000/60)
-ani.save('wave.mp4', writer=writer)
+ani = FuncAnimation(fig, update_plot, num_of_frames, interval=10)
+# ani.save('wave.mp4', writer=writer)
 
 plt.show()
