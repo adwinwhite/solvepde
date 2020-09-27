@@ -137,13 +137,47 @@ SparseMatrix<complex<double>> getTildeTSparseMatrix(const size_t &order, const S
 
 
 
+//SparseMatrix<complex<double>> getEvolutionOperatorForOneTimestep() {
+//    omp_set_num_threads(omp_get_max_threads());
+//    #pragma omp declare reduction(matrixAdd : SparseMatrix<complex<double>> : omp_out = omp_out + omp_in)                             \
+
+
+//    const auto H = getHamiltonian();
+//    //const auto maxEntry = H.cwiseAbs().maxCoeff();
+//    const auto pointerOfH = H.valuePtr();
+//    vector<complex<double>> valuesOfH(pointerOfH, pointerOfH + H.nonZeros());
+//    transform(valuesOfH.begin(), valuesOfH.end(), valuesOfH.begin(), abs<complex<double>>);
+//    vector<double> normValues(valuesOfH.size());
+//    for (size_t i = 0; i < valuesOfH.size(); ++i) {
+//        normValues[i] = valuesOfH[i].real();
+//    }
+//    const double maxEntry = *max_element(normValues.begin(), normValues.end());
+//    double z = TIME_STEP * maxEntry;
+//    auto B = -H / maxEntry;
+//    SparseMatrix<complex<double>> evolutionOperator(OPERATOR_SIZE, OPERATOR_SIZE);
+//    evolutionOperator.setZero();
+//    complex<double> jv = 1;
+//    auto properOrder = findProperApproximationOrder(z);
+//    cout << properOrder << endl;
+//    vector<SparseMatrix<complex<double>>> tildeTMatrices(properOrder + 1);
+//    for (size_t i = 0; i <= properOrder; ++i) {
+//        getTildeTSparseMatrix(i, B, tildeTMatrices);
+//        cout << i << endl;
+//    }
+//    #pragma omp parallel for reduction(matrixAdd : evolutionOperator)
+//    for (size_t i = 1; i <= properOrder; ++i) {
+//        cout << i << endl;
+//        jv = cyl_bessel_j(i, z);
+//        //Add += when not using parallel
+//        evolutionOperator = jv * tildeTMatrices[i];
+//    }
+//    evolutionOperator *= 2.0;
+//    evolutionOperator += tildeTMatrices[0] * cyl_bessel_j(0, z);
+//    return evolutionOperator;
+//}
+
 SparseMatrix<complex<double>> getEvolutionOperatorForOneTimestep() {
-    omp_set_num_threads(omp_get_max_threads());
-    #pragma omp declare reduction(matrixAdd : SparseMatrix<complex<double>> : omp_out = omp_out + omp_in)                             \
-
-
     const auto H = getHamiltonian();
-    //const auto maxEntry = H.cwiseAbs().maxCoeff();
     const auto pointerOfH = H.valuePtr();
     vector<complex<double>> valuesOfH(pointerOfH, pointerOfH + H.nonZeros());
     transform(valuesOfH.begin(), valuesOfH.end(), valuesOfH.begin(), abs<complex<double>>);
@@ -157,50 +191,23 @@ SparseMatrix<complex<double>> getEvolutionOperatorForOneTimestep() {
     SparseMatrix<complex<double>> evolutionOperator(OPERATOR_SIZE, OPERATOR_SIZE);
     evolutionOperator.setZero();
     complex<double> jv = 1;
+    SparseMatrix<complex<double>> idn(OPERATOR_SIZE, OPERATOR_SIZE);
+    idn.setIdentity();
+    vector<SparseMatrix<complex<double>>> tildeTMatrices = {idn, B * complex<double>(0., 1.)};
     auto properOrder = findProperApproximationOrder(z);
     cout << properOrder << endl;
-    vector<SparseMatrix<complex<double>>> tildeTMatrices(properOrder + 1);
-    for (size_t i = 0; i <= properOrder; ++i) {
-        getTildeTSparseMatrix(i, B, tildeTMatrices);
-        cout << i << endl;
-    }
-    #pragma omp parallel for reduction(matrixAdd : evolutionOperator)
     for (size_t i = 1; i <= properOrder; ++i) {
-        cout << i << endl;
         jv = cyl_bessel_j(i, z);
-        //Add += when not using parallel
-        evolutionOperator = jv * tildeTMatrices[i];
+        evolutionOperator += jv * tildeTMatrices[0];
+        auto nextTildeT = B * complex<double>(0., 2.) * tildeTMatrices[1] + tildeTMatrices[0];
+        tildeTMatrices[0] = tildeTMatrices[1];
+        tildeTMatrices[1] = nextTildeT;
+        cout << i << endl;
     }
     evolutionOperator *= 2.0;
-    evolutionOperator += tildeTMatrices[0] * cyl_bessel_j(0, z);
+    evolutionOperator += idn * cyl_bessel_j(0, z);
     return evolutionOperator;
 }
-
-//SparseMatrixXcd getEvolutionOperatorForOneTimestep() {
-//    auto begin = chrono::system_clock::now();
-//    double z = TIME_STEP * maxEntry;
-//    auto B = -H / maxEntry;
-//    SparseMatrixXcd evolutionOperator;
-//    evolutionOperator = SparseMatrixXcd::Zero(OPERATOR_SIZE, OPERATOR_SIZE);
-//    complex<double> jv = 1;
-//    vector<SparseMatrixXcd> tildeTMatrices = {SparseMatrixXcd::Identity(OPERATOR_SIZE, OPERATOR_SIZE), B * complex<double>(0., 1.)};
-//    auto properOrder = findProperApproximationOrder(z);
-//    cout << properOrder << endl;
-//    for (size_t i = 1; i <= properOrder; ++i) {
-//        jv = cyl_bessel_j(i, z);
-//        evolutionOperator += jv * tildeTMatrices[0];
-//        auto nextTildeT = B * complex<double>(0., 2.) * tildeTMatrices[1] + tildeTMatrices[0];
-//        tildeTMatrices[0] = tildeTMatrices[1];
-//        tildeTMatrices[1] = nextTildeT;
-//        cout << i << endl;
-//    }
-//    evolutionOperator *= 2.0;
-//    evolutionOperator += SparseMatrixXcd::Identity(OPERATOR_SIZE, OPERATOR_SIZE) * cyl_bessel_j(0, z);
-//    auto end = chrono::system_clock::now();
-//    chrono::duration<double> timeCost = end - begin;
-//    cout << "init_minc : " << timeCost.count() << "s." << endl;
-//    return evolutionOperator;
-//}
 
 
 
