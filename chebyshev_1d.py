@@ -51,17 +51,17 @@ def get_potential(x):
     # return x * 100000
     # if (x > 0.5 and x < 0.7) and (y < 0.4 or y > 0.6):
     #     return 10000
-    return 0
-    # if x > 50:
-    #     return 100
-    # else:
-    #     return 0
+    # return 0
+    if x > 70:
+        return 10
+    else:
+        return 0
 
 def initial_wave_unnormalized(x):
     # with width 0.01 and direction vector k=1
     if x < free_line[0] or x > free_line[1]:
         return 0
-    return cmath.exp(-(x - 50)**2/4/packet_width_x**2 + x*direction_vector*1j)
+    return cmath.exp(-(x - 30)**2/4/packet_width_x**2 + x*direction_vector*1j)
 
 
 
@@ -104,12 +104,12 @@ def next_T_tilde_matrix(B):
 
 
 H = get_hamiltonian()
-max_entry = np.amax(np.abs(H))
+# max_entry = np.amax(np.abs(H))
 def get_evolution_operator_one_timestep():
     max_eigenvalue = eigsh(H, k=1, which="LA")[0][0]
     min_eigenvalue = eigsh(H, k=1, which="SA")[0][0]
     z = (max_eigenvalue - min_eigenvalue) * time_step / 2
-    B = (H * 2 / (max_eigenvalue - min_eigenvalue) - np.identity(operator_size)) * (-1j)
+    B = ((H * 2  - np.identity(operator_size) * (max_eigenvalue + min_eigenvalue)) / (max_eigenvalue - min_eigenvalue)) * (-1j)
     evolution_operator = np.zeros((operator_size, operator_size), dtype=np.complex128)
     jv = 1
     i = 1
