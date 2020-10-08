@@ -21,7 +21,7 @@ time_step = 0.01
 free_line = (0, 100)
 num_of_frames = 1000000
 max_order_of_chebyshev_poly = 100000
-allowed_error = 10**(-18)
+allowed_error = 10**(-13)
 
 free_line_length = (free_line[1] - free_line[0])
 mesh_step = free_line_length / grid_size[0]
@@ -53,7 +53,7 @@ def get_potential(x):
     #     return 10000
     # return 0
     if x > 70:
-        return 10
+        return 2
     else:
         return 0
 
@@ -105,19 +105,29 @@ def next_T_tilde_matrix(B):
 
 H = get_hamiltonian()
 # max_entry = np.amax(np.abs(H))
+# using recursion formula for chebyshev polynomial. x's range is R rather than [-1, 1]
 def get_evolution_operator_one_timestep():
+    eigen_factor = 8
+    print("det(H) : {}".format(scipy.linalg.det(H)))
     max_eigenvalue = eigsh(H, k=1, which="LA")[0][0]
     min_eigenvalue = eigsh(H, k=1, which="SA")[0][0]
-    z = (max_eigenvalue - min_eigenvalue) * time_step / 2
-    B = ((H * 2  - np.identity(operator_size) * (max_eigenvalue + min_eigenvalue)) / (max_eigenvalue - min_eigenvalue)) * (-1j)
+    print("max_eigenvalue : {}".format(max_eigenvalue))
+    print("min_eigenvalue : {}".format(min_eigenvalue))
+    z = (max_eigenvalue - min_eigenvalue) * time_step / eigen_factor
+    B = ((H - np.identity(operator_size) * (max_eigenvalue + min_eigenvalue) / 2) / (max_eigenvalue - min_eigenvalue)) * (-1j) * eigen_factor
+    print("det(B) : {}".format(scipy.linalg.det(B)))
     evolution_operator = np.zeros((operator_size, operator_size), dtype=np.complex128)
     jv = 1
     i = 1
     while abs(jv) > allowed_error and i <= max_order_of_chebyshev_poly:
         jv = scipy.special.jv(i, z)
-        evolution_operator += jv * next_T_tilde_matrix(B)
+        # evolution_operator += jv * next_T_tilde_matrix(B)
+        tmpT = jv * next_T_tilde_matrix(B)
+        if scipy.linalg.det(tmpT) == 0:
+            print("{}".format(i))
+        evolution_operator += tmpT
         i += 1
-    evolution_operator = (evolution_operator * 2 + np.identity(operator_size, dtype=np.complex128) * scipy.special.jv(0, z)) * np.exp((max_eigenvalue + min_eigenvalue) * time_step / 2 * (-1j))
+    evolution_operator = (evolution_operator * 2 + np.identity(operator_size, dtype=np.complex128) * scipy.special.jv(0, z)) * np.exp((max_eigenvalue + min_eigenvalue) * time_step * (-0.5j))
     print("{} : {}".format(i, abs(jv)))
     # detm = scipy.linalg.det(evolution_operator * evolution_operator.transpose().conj())
     # factor = pow(1 / detm, 1 / operator_size)
