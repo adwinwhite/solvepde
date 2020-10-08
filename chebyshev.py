@@ -9,6 +9,7 @@ import matplotlib
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation
+from scipy.sparse.linalg import eigsh
 
 
 
@@ -16,12 +17,12 @@ from matplotlib.animation import FuncAnimation
 grid_size = (64, 64)
 packet_width_x = 0.025
 packet_width_y = 0.025
-direction_vector = 10000
+direction_vector = 100
 time_step = 0.00001
 mesh_step = 1 / grid_size[0]
 num_of_frames = 1000
 max_order_of_chebyshev_poly = 100000
-allowed_error = 0
+allowed_error = 10**(-13)
 
 free_plane = (0, 0, grid_size[0] * mesh_step, grid_size[1] * mesh_step)
 free_plane_length = (free_plane[2] - free_plane[0], free_plane[3] - free_plane[1])
@@ -58,26 +59,16 @@ def initial_wave_unnormalized(x, y):
     # with width 0.01 and direction vector k=1
     if x < free_plane[0] or x > free_plane[2] or y < free_plane[1] or y > free_plane[3] or get_potential(x, y) >= 10000:
         return 0
-    return cmath.exp(-(x - 0.2)**2/4/packet_width_x**2 -(y - 0.5)**2/4/packet_width_y**2 + x*direction_vector*1j)
+    return cmath.exp(-(x - 0.5)**2/4/packet_width_x**2 -(y - 0.5)**2/4/packet_width_y**2 + x*direction_vector*1j)
 
-def get_normalization_factor():
-    integral = 0
-    for j in range(grid_size[1]):
-        for i in range(grid_size[0]):
-            integral += abs(initial_wave_unnormalized(i * mesh_step, j * mesh_step))**2
-    integral *= mesh_step**2
-    return math.sqrt(1/integral)
 
-normalization_factor = get_normalization_factor()
-def initial_wave_normalized(x, y):
-    return initial_wave_unnormalized(x, y) * normalization_factor
 
 
 def get_discretized_init_wave_function():
     results = []
-    for j in range(grid_size[1]):
-        for i in range(grid_size[0]):
-            results.append(initial_wave_normalized(i * mesh_step, j * mesh_step))
+    for j in range(grid_size[1] + 1):
+        for i in range(grid_size[0] + 1):
+            results.append(initial_wave_unnormalized(i * mesh_step, j * mesh_step))
     return np.array(results)
 
 
@@ -125,10 +116,10 @@ T_tilde_matrices = [None, np.identity(operator_size)]
 def next_T_tilde_matrix(B):
     if T_tilde_matrices[0] is None:
         T_tilde_matrices[0] = T_tilde_matrices[1]
-        T_tilde_matrices[1] = B * 1j
+        T_tilde_matrices[1] = B
         return T_tilde_matrices[1]
     else:
-        next_T_tilde = B * 2j * T_tilde_matrices[1] + T_tilde_matrices[0]
+        next_T_tilde = B * 2 * T_tilde_matrices[1] - T_tilde_matrices[0]
         T_tilde_matrices[0] = T_tilde_matrices[1]
         T_tilde_matrices[1] = next_T_tilde
         return next_T_tilde
@@ -137,9 +128,10 @@ def next_T_tilde_matrix(B):
 H = get_hamiltonian()
 max_entry = np.amax(np.abs(H))
 def get_evolution_operator_one_timestep():
-    z = -time_step * max_entry
-    B = H / max_entry
-    # evolution_operator = np.identity(operator_size) * scipy.special.jv(0, z) + 2 * sum([scipy.special.jv(i, z) * T_tilde_matrix(i, B) for i in range(1, order_of_chebyshev_poly)])
+    max_eigenvalue = eigsh(H, k=1, which="LA")[0][0]
+    min_eigenvalue = eigsh(H, k=1, which="SA")[0][0]
+    z = (max_eigenvalue - min_eigenvalue) * time_step / 2
+    B = (H * 2 / (max_eigenvalue - min_eigenvalue) - np.identity(operator_size)) * (-1j)
     evolution_operator = np.zeros((operator_size, operator_size), dtype=np.complex128)
     jv = 1
     i = 1
@@ -147,28 +139,69 @@ def get_evolution_operator_one_timestep():
         jv = scipy.special.jv(i, z)
         evolution_operator += jv * next_T_tilde_matrix(B)
         i += 1
-    evolution_operator = evolution_operator * 2 + np.identity(operator_size, dtype=np.complex128) * scipy.special.jv(0, z)
+    evolution_operator = (evolution_operator * 2 + np.identity(operator_size, dtype=np.complex128) * scipy.special.jv(0, z)) * np.exp((max_eigenvalue + min_eigenvalue) * time_step / 2 * (-1j))
     print("{} : {}".format(i, abs(jv)))
     return evolution_operator
 
-def normalized_wave(wave):
-    integral = sum([abs(x)**2 for x in wave]) * mesh_step**2
+
+def fake_border(wave):
+    for i in range(1, grid_size[0]):
+        wave[grid_size[1] * (grid_size[0] + 1) + i] = wave[(grid_size[1] - 1) * (grid_size[0] + 1) + i]
+        wave[i] = wave[grid_size[0] + 1 + i]
+    for j in range(1, grid_size[1]):
+        wave[j * (grid_size[0] + 1)] = wave[j * (grid_size[0] + 1) + 1]
+        wave[j * (grid_size[0] + 1) + grid_size[0]] = wave[j * (grid_size[0] + 1) + grid_size[0] - 1]
+    return wave
+
+def normalize_wave(wave):
+    # integral = sum([abs(x)**2 for x in wave]) * mesh_step**2
+    integral = 0
+    for j in range(1, grid_size[1]):
+        for i in range(1, grid_size[0]):
+            integral += abs(wave[j * (grid_size[0] + 1) + i])**2
+    integral *= mesh_step**2
     factor = math.sqrt(1/integral)
     return wave * factor
 
+def apply_damping(wave, damping_factor=1.0, border_size=0):
+    # factors
+    factors = []
+    for i in range(border_size):
+        # factors.append(1.0 - damping_factor * time_step * (1 - math.sin(math.pi * i / 2 / border_size)))
+        factors.append(damping_factor * math.sin(math.pi * i / 2 / border_size))
+    # bottom
+    for factor_index, j in enumerate(range(border_size)):
+        for i in range(grid_size[0] + 1):
+            wave[j * (grid_size[0] + 1) + i] *= factors[factor_index]
+    # top
+    for factor_index, j in enumerate(range(grid_size[1], grid_size[1] - border_size, -1)):
+        for i in range(grid_size[0] + 1):
+            wave[j * (grid_size[0] + 1) + i] *= factors[factor_index]
+    # left
+    for factor_index, i in enumerate(range(border_size)):
+        for j in range(grid_size[1] + 1):
+            wave[j * (grid_size[0] + 1) + i] *= factors[factor_index]
+    # right
+    for factor_index, i in enumerate(range(grid_size[0], grid_size[0] - border_size, -1)):
+        for j in range(grid_size[1] + 1):
+            wave[j * (grid_size[0] + 1) + i] *= factors[factor_index]
+    return wave
+
 
 evolution_operator = get_evolution_operator_one_timestep()
-current_wave = get_discretized_init_wave_function()
+current_wave = normalize_wave(get_discretized_init_wave_function())
 def propagate_wave():
     global current_wave
-    # current_wave = normalized_wave(evolution_operator.dot(current_wave))
-    current_wave = evolution_operator.dot(current_wave)
+    # current_wave = evolution_operator.dot(fake_border(current_wave))
+    current_wave = normalize_wave(evolution_operator.dot(fake_border(current_wave)))
+    # current_wave = normalize_wave(apply_damping(evolution_operator.dot(current_wave), damping_factor=0.9, border_size=6))
+    # current_wave = evolution_operator.dot(current_wave)
     return current_wave
 
 
 
-xs = np.linspace(free_plane[0], free_plane[2], grid_size[0])
-ys = np.linspace(free_plane[1], free_plane[3], grid_size[1])
+xs = np.linspace(free_plane[0], free_plane[2], grid_size[0] + 1)
+ys = np.linspace(free_plane[1], free_plane[3], grid_size[1] + 1)
 xs, ys = np.meshgrid(xs, ys)
 ps = np.array([[get_potential(i * mesh_step, j * mesh_step) / 1000 for i in range(grid_size[0])] for j in range(grid_size[1])])
 
@@ -182,7 +215,7 @@ def update_plot(frame_number):
     ax.set_ylabel("y")
     ax.invert_xaxis()
     # ax.plot_surface(xs, ys, ps, cmap="Dark2")
-    dis = np.reshape([abs(x)**2 for x in propagate_wave()], (grid_size[1], grid_size[0]))
+    dis = np.reshape([abs(x)**2 for x in propagate_wave()], (grid_size[1] + 1, grid_size[0] + 1))
     ax.plot_surface(xs, ys, dis, cmap="coolwarm")
 
 Writer = animation.writers['ffmpeg']
