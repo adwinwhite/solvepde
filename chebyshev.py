@@ -15,16 +15,16 @@ from scipy import sparse
 
 
 
-grid_size = (128, 128)
+grid_size = (256, 256)
 packet_width_x = 0.05
 packet_width_y = 0.05
 direction_vector = 100
-time_step = 0.04
+time_step = 0.08
 num_of_frames = 1000
 max_order_of_chebyshev_poly = 100000
 allowed_error = 10**(-13)
 mesh_step = 1
-display_size = (32, 32)
+display_size = (64, 64)
 
 free_plane = (0, 0, grid_size[0] * mesh_step, grid_size[1] * mesh_step)
 free_plane_length = (free_plane[2] - free_plane[0], free_plane[3] - free_plane[1])
@@ -53,17 +53,18 @@ def get_potential(x, y):
     # return x * 100000
     # if (x > 0.5 and x < 0.7) and (y < 0.4 or y > 0.6):
     #     return 10000
-    if x > 0.5:
-        return 0
+    if x > 0.7 * free_plane[2]:
+        return 4
     else:
         return 0
     # return 0
+    # return x
 
 def initial_wave_unnormalized(x, y):
     # with width 0.01 and direction vector k=1
     if x < free_plane[0] or x > free_plane[2] or y < free_plane[1] or y > free_plane[3]:
         return 0
-    return cmath.exp(-(x - 0.5 * free_plane[2])**2/4/(packet_width_x * free_plane[2])**2 -(y - 0.5 * free_plane[3])**2/4/(packet_width_y * free_plane[3])**2 + x*direction_vector*1j)
+    return cmath.exp(-(x - 0.3 * free_plane[2])**2/4/(packet_width_x * free_plane[2])**2 -(y - 0.5 * free_plane[3])**2/4/(packet_width_y * free_plane[3])**2 + x*direction_vector*1j)
 
 
 
@@ -234,7 +235,7 @@ xs, ys = np.meshgrid(xs, ys)
 # draw the figure
 def update_plot(frame_number):
     ax.clear()
-    ax.set_zlim(0, 0.02)
+    ax.set_zlim(0, 0.64 / grid_size[0])
     ax.set_xlim(free_plane[0], free_plane[2])
     ax.set_ylim(free_plane[1], free_plane[3])
     ax.set_xlabel("x")
@@ -242,7 +243,7 @@ def update_plot(frame_number):
     ax.invert_xaxis()
     # ax.plot_surface(xs, ys, ps, cmap="Dark2")
     # dis = np.reshape([abs(x)**2 for x in propagate_wave(steps=20)], (grid_size[1] + 1, grid_size[0] + 1))
-    dis = np.abs(np.reshape(propagate_wave(steps=40), (grid_size[1] + 1, grid_size[0] + 1))[::int(grid_size[1]/display_size[1]), ::int(grid_size[0]/display_size[0])])**2
+    dis = np.abs(np.reshape(propagate_wave(steps=20), (grid_size[1] + 1, grid_size[0] + 1))[::int(grid_size[1]/display_size[1]), ::int(grid_size[0]/display_size[0])])**2
     # dis = np.reshape(propagate_wave(steps=20), (grid_size[1] + 1, grid_size[0] + 1))
     # propagate_wave(steps=20)
     # dis = np.reshape(current_wave, (grid_size[1] + 1, grid_size[0] + 1))[0:-1:grid_size]
