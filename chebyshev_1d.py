@@ -14,17 +14,18 @@ from scipy.sparse.linalg import eigsh
 
 
 
-grid_size = (100,)
+grid_size = (400,)
 packet_width_x = 5
 direction_vector = 100
 time_step = 0.01
-free_line = (0, 100)
 num_of_frames = 1000000
 max_order_of_chebyshev_poly = 100000
 allowed_error = 10**(-13)
+mesh_step = 1
 
+free_line = (0, mesh_step * grid_size[0])
 free_line_length = (free_line[1] - free_line[0])
-mesh_step = free_line_length / grid_size[0]
+
 
 operator_size = (grid_size[0] + 1)
 
@@ -52,8 +53,8 @@ def get_potential(x):
     # if (x > 0.5 and x < 0.7) and (y < 0.4 or y > 0.6):
     #     return 10000
     # return 0
-    if x > 70:
-        return 2
+    if x > 0.7 * free_line[1]:
+        return 4
     else:
         return 0
 
@@ -107,7 +108,7 @@ H = get_hamiltonian()
 # max_entry = np.amax(np.abs(H))
 # using recursion formula for chebyshev polynomial. x's range is R rather than [-1, 1]
 def get_evolution_operator_one_timestep():
-    eigen_factor = 8
+    eigen_factor = 4
     print("det(H) : {}".format(scipy.linalg.det(H)))
     max_eigenvalue = eigsh(H, k=1, which="LA")[0][0]
     min_eigenvalue = eigsh(H, k=1, which="SA")[0][0]
@@ -199,7 +200,7 @@ def update_plot(frame_number):
     ax.set_ylim(0, 0.2)
     ax.set_xlabel("x")
     ax.set_ylabel("y")
-    propagate_wave(steps=10)
+    propagate_wave(steps=100)
     ps = [abs(x)**2 for x in current_wave]
     # res = [x.real for x in current_wave]
     # ims = [x.imag for x in current_wave]
