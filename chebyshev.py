@@ -105,18 +105,22 @@ def flatten_hamiltionian(i, j):
         rowH[j - 1][i] = 1
     rowH = rowH / mesh_step**2
     rowH[j][i] += get_potential(i * mesh_step, j * mesh_step)
-    return rowH.flatten()
+    return sparse.csr_matrix(rowH.flatten())
 
 
 def get_hamiltonian():
-    hamiltonian = []
+    hamiltonian = None
     for j in range(grid_size[1] + 1):
         for i in range(grid_size[0] + 1):
-            hamiltonian.append(flatten_hamiltionian(i, j))
-    return np.array(hamiltonian)
+            if i == 0 and j == 0:
+                hamiltonian = flatten_hamiltionian(i, j)
+            else:
+                hamiltonian = sparse.vstack([hamiltonian, flatten_hamiltionian(i, j)])
+            # hamiltonian.append(flatten_hamiltionian(i, j))
+    return hamiltonian
 
 
-T_tilde_matrices = [None, np.identity(operator_size)]
+T_tilde_matrices = [None, sparse.identity(operator_size)]
 def next_T_tilde_matrix(B):
     if T_tilde_matrices[0] is None:
         T_tilde_matrices[0] = T_tilde_matrices[1]
@@ -132,6 +136,7 @@ def next_T_tilde_matrix(B):
 H = get_hamiltonian()
 # using recursion formula for chebyshev polynomial. x's range is R rather than [-1, 1]
 def get_evolution_operator_one_timestep():
+    print(H.shape)
     eigen_factor = 64
     # print("det(H) : {}".format(scipy.linalg.det(H)))
     # max_eigenvalue = eigsh(H, k=1, which="LA")[0][0]
@@ -141,25 +146,26 @@ def get_evolution_operator_one_timestep():
     print("max_eigenvalue : {}".format(max_eigenvalue))
     print("min_eigenvalue : {}".format(min_eigenvalue))
     z = (max_eigenvalue - min_eigenvalue) * time_step / eigen_factor
-    B = ((H - np.identity(operator_size) * (max_eigenvalue + min_eigenvalue) / 2) / (max_eigenvalue - min_eigenvalue)) * (-1j) * eigen_factor
+    B = ((H - sparse.identity(operator_size) * (max_eigenvalue + min_eigenvalue) / 2) / (max_eigenvalue - min_eigenvalue)) * (-1j) * eigen_factor
     # print("det(B) : {}".format(scipy.linalg.det(B)))
-    evolution_operator = np.zeros((operator_size, operator_size), dtype=np.complex128)
+    evolution_operator = sparse.csr_matrix((operator_size, operator_size), dtype=np.complex128)
     jv = 1
     i = 1
     while abs(jv) > allowed_error and i <= max_order_of_chebyshev_poly:
         jv = scipy.special.jv(i, z)
         # evolution_operator += jv * next_T_tilde_matrix(B)
         tmpT = jv * next_T_tilde_matrix(B)
-        if scipy.linalg.det(tmpT) == 0:
-            print("{}".format(i))
+        print(i)
+        # if sparse.linalg.det(tmpT) == 0:
+        #     print("{}".format(i))
         evolution_operator += tmpT
         i += 1
-    evolution_operator = (evolution_operator * 2 + np.identity(operator_size, dtype=np.complex128) * scipy.special.jv(0, z)) * np.exp((max_eigenvalue + min_eigenvalue) * time_step * (-0.5j))
+    evolution_operator = (evolution_operator * 2 + sparse.identity(operator_size, dtype=np.complex128) * scipy.special.jv(0, z)) * np.exp((max_eigenvalue + min_eigenvalue) * time_step * (-0.5j))
     print("{} : {}".format(i, abs(jv)))
     # detm = scipy.linalg.det(evolution_operator * evolution_operator.transpose().conj())
     # factor = pow(1 / detm, 1 / operator_size)
     # evolution_operator *= factor
-    print("{}".format(scipy.linalg.det(evolution_operator * evolution_operator.transpose().conj())))
+    # print("{}".format(scipy.linalg.det(evolution_operator * evolution_operator.transpose().conj())))
     return sparse.csr_matrix(evolution_operator)
 
 
