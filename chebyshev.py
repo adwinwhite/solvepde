@@ -5,7 +5,7 @@ import math
 
 
 import matplotlib
-# matplotlib.use("Agg")
+matplotlib.use("Agg")
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 
@@ -14,16 +14,18 @@ from mpl_toolkits.mplot3d import proj3d
 from matplotlib.animation import FuncAnimation
 from scipy.sparse.linalg import eigsh
 from scipy import sparse
+# from sparse_dot_mkl import dot_product_mkl
 
 
 
 
-grid_size = (256, 128)
-packet_width_x = 0.08
-packet_width_y = 0.08
+
+grid_size = (400, 200)
+packet_width_x = 0.05
+packet_width_y = 0.1
 direction_vector = 100
 time_step = 0.08
-num_of_frames = 1000
+num_of_frames = 360
 max_order_of_chebyshev_poly = 100000
 allowed_error = 10**(-13)
 mesh_step = 1
@@ -35,36 +37,12 @@ operator_size = (grid_size[0] + 1) * (grid_size[1] + 1)
 
 
 def get_potential(x, y):
-    # return 10 * ((x-0.5)**2 + (y-0.5)**2 + 0.0001)
-    # if (x > 0.5 and x < 0.7) and (y > 0.55 or y < 0.45):
-    #     return -10**5
-    # else:
-    #     return 0
-    # if (x > 0.6 * free_plane[2] or x < 0.7 * free_plane[2]) and (y < 0.4 * free_plane[3] or y > 0.6 * free_plane[3]):
-    #     return 10000
-    # return 0
-    # if (x - (free_plane[0] + free_plane_length[0] * 0.5))**2 + (x - (free_plane[1] + free_plane_length[1] * 0.5))**2 > 0.04 and (x - (free_plane[0] + free_plane_length[0] * 0.5))**2 + (x - (free_plane[1] + free_plane_length[1] * 0.5))**2 < 0.09:
-    #     return -10000
-    # return 0
-    # if (x - 0.5)**2 + (y - 0.5)**2 < 0.04:
-    #     return 5000
-    # else:
-    #     return 0
-    # return x * 10000
-    # if x > 0.5 and y > 0.5:
-    #     return -10000
-    # return x * 100000
-    # if (x > 0.5 and x < 0.7) and (y < 0.4 or y > 0.6):
-    #     return 10000
-    if x > 0.5 * free_plane[2] and x < 0.6 * free_plane[2] and (y < 0.45 * free_plane[3] or y > 0.55 * free_plane[3]):
+    if x > 0.5 * free_plane[2] and x < 0.55 * free_plane[2] and (y < 0.45 * free_plane[3] or y > 0.55 * free_plane[3]):
         return 6
     else:
         return 0
-    # return 0
-    # return x
 
 def initial_wave_unnormalized(x, y):
-    # with width 0.01 and direction vector k=1
     if x < free_plane[0] or x > free_plane[2] or y < free_plane[1] or y > free_plane[3]:
         return 0
     return cmath.exp(-(x - 0.25 * free_plane[2])**2/4/(packet_width_x * free_plane[2])**2 -(y - 0.5 * free_plane[3])**2/4/(packet_width_y * free_plane[3])**2 + x*direction_vector*1j)
@@ -80,21 +58,7 @@ def get_discretized_init_wave_function():
     return np.array(results)
 
 
-#
-# def flatten_hamiltionian(i, j):
-#     rowH = np.zeros((grid_size[1], grid_size[0]))
-#     rowH[j][i] = -4
-#     if i + 1 < grid_size[0]:
-#         rowH[j][i + 1] = 1
-#     if i - 1 >= 0:
-#         rowH[j][i - 1] = 1
-#     if j + 1 < grid_size[1]:
-#         rowH[j + 1][i] = 1
-#     if j - 1 >= 0:
-#         rowH[j - 1][i] = 1
-#     rowH = rowH * mesh_step_reciprocal**2
-#     rowH[j][i] += get_potential(i * mesh_step, j * mesh_step)
-#     return rowH.flatten()
+
 
 def flatten_hamiltionian(i, j):
     rowH = np.zeros((grid_size[1] + 1, grid_size[0] + 1))
@@ -113,15 +77,12 @@ def flatten_hamiltionian(i, j):
 
 
 def get_hamiltonian():
-    hamiltonian = None
+    hamiltonian = []
     for j in range(grid_size[1] + 1):
         for i in range(grid_size[0] + 1):
-            if i == 0 and j == 0:
-                hamiltonian = flatten_hamiltionian(i, j)
-            else:
-                hamiltonian = sparse.vstack([hamiltonian, flatten_hamiltionian(i, j)])
-            # hamiltonian.append(flatten_hamiltionian(i, j))
-    return hamiltonian
+            hamiltonian.append(flatten_hamiltionian(i, j))
+        print(j)
+    return sparse.vstack(hamiltonian)
 
 
 T_tilde_matrices = [None, sparse.identity(operator_size)]
@@ -251,9 +212,10 @@ def update_plot(frame_number):
     # propagate_wave(steps=20)
     # dis = np.reshape(current_wave, (grid_size[1] + 1, grid_size[0] + 1))[0:-1:grid_size]
     ax.plot_surface(xs, ys, dis, cmap="coolwarm")
+    print(frame_number)
 
-# Writer = animation.writers['ffmpeg']
-# writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
+Writer = animation.writers['ffmpeg']
+writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
@@ -272,6 +234,6 @@ def short_proj():
 ax.get_proj=short_proj
 
 ani = FuncAnimation(fig, update_plot, num_of_frames, interval=1)
-# ani.save('wave.mp4', writer=writer)
+ani.save('wave.mp4', writer=writer)
 
-plt.show()
+# plt.show()
