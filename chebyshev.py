@@ -8,6 +8,9 @@ import matplotlib
 # matplotlib.use("Agg")
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
+
+from mpl_toolkits.mplot3d.axes3d import Axes3D
+from mpl_toolkits.mplot3d import proj3d
 from matplotlib.animation import FuncAnimation
 from scipy.sparse.linalg import eigsh
 from scipy import sparse
@@ -15,16 +18,16 @@ from scipy import sparse
 
 
 
-grid_size = (256, 256)
-packet_width_x = 0.05
-packet_width_y = 0.05
+grid_size = (256, 128)
+packet_width_x = 0.08
+packet_width_y = 0.08
 direction_vector = 100
 time_step = 0.08
 num_of_frames = 1000
 max_order_of_chebyshev_poly = 100000
 allowed_error = 10**(-13)
 mesh_step = 1
-display_size = (64, 64)
+display_size_step = 2
 
 free_plane = (0, 0, grid_size[0] * mesh_step, grid_size[1] * mesh_step)
 free_plane_length = (free_plane[2] - free_plane[0], free_plane[3] - free_plane[1])
@@ -53,8 +56,8 @@ def get_potential(x, y):
     # return x * 100000
     # if (x > 0.5 and x < 0.7) and (y < 0.4 or y > 0.6):
     #     return 10000
-    if x > 0.7 * free_plane[2]:
-        return 4
+    if x > 0.5 * free_plane[2] and x < 0.6 * free_plane[2] and (y < 0.45 * free_plane[3] or y > 0.55 * free_plane[3]):
+        return 6
     else:
         return 0
     # return 0
@@ -64,7 +67,7 @@ def initial_wave_unnormalized(x, y):
     # with width 0.01 and direction vector k=1
     if x < free_plane[0] or x > free_plane[2] or y < free_plane[1] or y > free_plane[3]:
         return 0
-    return cmath.exp(-(x - 0.3 * free_plane[2])**2/4/(packet_width_x * free_plane[2])**2 -(y - 0.5 * free_plane[3])**2/4/(packet_width_y * free_plane[3])**2 + x*direction_vector*1j)
+    return cmath.exp(-(x - 0.25 * free_plane[2])**2/4/(packet_width_x * free_plane[2])**2 -(y - 0.5 * free_plane[3])**2/4/(packet_width_y * free_plane[3])**2 + x*direction_vector*1j)
 
 
 
@@ -227,15 +230,15 @@ def propagate_wave(steps=1):
 
 
 
-xs = np.linspace(free_plane[0], free_plane[2], display_size[0] + 1)
-ys = np.linspace(free_plane[1], free_plane[3], display_size[1] + 1)
+xs = np.linspace(free_plane[0], free_plane[2], int(grid_size[0] / display_size_step) + 1)
+ys = np.linspace(free_plane[1], free_plane[3], int(grid_size[1] / display_size_step) + 1)
 xs, ys = np.meshgrid(xs, ys)
 # ps = np.array([[get_potential(i * mesh_step, j * mesh_step) / 1000 for i in range(grid_size[0])] for j in range(grid_size[1])])
 
 # draw the figure
 def update_plot(frame_number):
     ax.clear()
-    ax.set_zlim(0, 0.64 / grid_size[0])
+    ax.set_zlim(0, 0.32 / grid_size[0])
     ax.set_xlim(free_plane[0], free_plane[2])
     ax.set_ylim(free_plane[1], free_plane[3])
     ax.set_xlabel("x")
@@ -243,7 +246,7 @@ def update_plot(frame_number):
     ax.invert_xaxis()
     # ax.plot_surface(xs, ys, ps, cmap="Dark2")
     # dis = np.reshape([abs(x)**2 for x in propagate_wave(steps=20)], (grid_size[1] + 1, grid_size[0] + 1))
-    dis = np.abs(np.reshape(propagate_wave(steps=20), (grid_size[1] + 1, grid_size[0] + 1))[::int(grid_size[1]/display_size[1]), ::int(grid_size[0]/display_size[0])])**2
+    dis = np.abs(np.reshape(propagate_wave(steps=10), (grid_size[1] + 1, grid_size[0] + 1))[::display_size_step, ::display_size_step])**2
     # dis = np.reshape(propagate_wave(steps=20), (grid_size[1] + 1, grid_size[0] + 1))
     # propagate_wave(steps=20)
     # dis = np.reshape(current_wave, (grid_size[1] + 1, grid_size[0] + 1))[0:-1:grid_size]
@@ -254,6 +257,19 @@ def update_plot(frame_number):
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
+
+x_scale=2
+y_scale=1
+z_scale=1
+
+scale=np.diag([x_scale, y_scale, z_scale, 1.0])
+scale=scale*(1.0/scale.max())
+scale[3,3]=1.0
+
+def short_proj():
+  return np.dot(Axes3D.get_proj(ax), scale)
+
+ax.get_proj=short_proj
 
 ani = FuncAnimation(fig, update_plot, num_of_frames, interval=1)
 # ani.save('wave.mp4', writer=writer)
