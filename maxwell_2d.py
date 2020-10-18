@@ -28,7 +28,7 @@ mesh_step = 1
 num_of_frames = 10000
 time_step = 0.1
 electric_direction = np.array((0, 1, 0))
-k = np.array((10, 0, 0))
+k = np.array((1000, 0, 0))
 E_0 = 10
 allowed_error = 10**(-13)
 max_order_of_chebyshev_poly = 100000
@@ -198,15 +198,11 @@ def get_evolution_operator_one_timestep():
 #         wave[j * (grid_size[0] + 1) + grid_size[0]] = wave[j * (grid_size[0] + 1) + grid_size[0] - 1]
 #     return wave
 #
-# def normalize_wave(wave):
-#     # integral = sum([abs(x)**2 for x in wave]) * mesh_step**2
-#     integral = 0
-#     for j in range(1, grid_size[1]):
-#         for i in range(1, grid_size[0]):
-#             integral += abs(wave[j * (grid_size[0] + 1) + i])**2
-#     integral *= mesh_step**2
-#     factor = math.sqrt(1/integral)
-#     return wave * factor
+def normalize_wave(wave):
+    unflattened = np.reshape(wave, ((grid_size[1] + 1) * (grid_size[0] + 1), 3))
+    integral = sum([np.linalg.norm(v)**2 for v in unflattened]) / 2 * mesh_step**2
+    factor = math.sqrt(1/integral)
+    return wave * factor
 #
 # def apply_damping(wave, damping_factor=1.0, border_size=0):
 #     # factors
@@ -241,13 +237,13 @@ def propagate_wave(steps=1):
     for i in range(steps):
         # current_wave = normalize_wave(evolution_operator.dot(fake_border(current_wave)))
     # current_wave = normalize_wave(apply_damping(evolution_operator.dot(current_wave), damping_factor=0.9, border_size=6))
-        current_wave = evolution_operator.dot(current_wave)
+        current_wave = normalize_wave(evolution_operator.dot(current_wave))
     return current_wave
 
 def wave2energe(wave):
     unflattened = np.reshape(wave, (grid_size[1] + 1, grid_size[0] + 1, 3))[::display_size_step, ::display_size_step, ::]
     # print(unflattened.shape)
-    dis = np.array([[np.linalg.norm(v)**2 / 2 for v in unflattened[j]] for j in range(int(grid_size[1] / display_size_step) + 1)])
+    dis = np.array([[np.linalg.norm(v)**2 for v in unflattened[j]] for j in range(int(grid_size[1] / display_size_step) + 1)]) * 0.5
     return dis
 
 
@@ -260,7 +256,7 @@ xs, ys = np.meshgrid(xs, ys)
 # draw the figure
 def update_plot(frame_number):
     ax.clear()
-    # ax.set_zlim(0, 1)
+    ax.set_zlim(0, 0.32 / grid_size[0])
     # ax.set_xlim(0, free_plane_length[0])
     # ax.set_ylim(0, free_plane_length[1])
     ax.set_xlabel("x")
