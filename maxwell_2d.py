@@ -7,7 +7,7 @@ import multiprocessing as mp
 
 
 import matplotlib
-# matplotlib.use("Agg")
+matplotlib.use("Agg")
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 
@@ -30,7 +30,7 @@ magnetic_constant = 1.256 * 10**(-6)
 # electric_constant = 1
 # magnetic_constant = 1
 mesh_step = 0.1                               # can change number of summits. 0.1 is good
-num_of_frames = 10000
+num_of_frames = 300
 time_step = 0.00000000004
 electric_direction = np.array((0, 1, 0))
 k = np.array((1, 0, 0))
@@ -52,36 +52,14 @@ magnetic_coeff_sqrt = math.sqrt(magnetic_constant)
 
 electric_direction = electric_direction / np.linalg.norm(electric_direction)
 k_direction = k / np.linalg.norm(k)
-# print(electric_direction)
-# print(k_direction)
 
 def E(x, y, z):
     return np.array([-electric_direction[1] * y / 2 / packet_size[1]**2 - electric_direction[2] * z / 2 / packet_size[2], -electric_direction[1] * (-x / 2 / packet_size[0]**2 + k[0] * 1j), -electric_direction[2] * (-x / 2 / packet_size[0]**2 + k[0] * 1j)]) * 1j * E_0 * math.pi**(3/2) / (packet_size[0] * packet_size[1] * packet_size[2]) * cmath.exp(1j * k[0] * x) * cmath.exp(-(x/2/packet_size[0])**2-(y/2/packet_size[1])**2-(z/2/packet_size[2])**2)
 
-# def E(x, y, z):
-#     return electric_direction * E_0 * cmath.exp(1j * (k.dot(np.array([x, y, z]))))
 
 def B(x, y, z):
     return np.cross(k_direction, E(x, y, z)) / light_speed
 
-def energy_density(t):
-    xs = np.linspace(free_plane[0], free_plane[2], grid_size[0] + 1)
-    ys = np.linspace(free_plane[1], free_plane[3], grid_size[1] + 1)
-    # es = [[((electric_constant * E_z(x, y, t)**2 + magnetic_constant * (H_x(x, y, t)**2 + H_y((x, y, t)**2))) / 2) for x in xs] for y in ys]
-    es = []
-    for y in ys:
-        row = []
-        for x in xs:
-            # curr_E = [x.real for x in E(x, y, 0)]
-            # curr_B = [x.real for x in B(x, y, 0)]
-            curr_E = E(x, y, 0)
-            # print(curr_E)
-            curr_B = np.cross(k_direction, curr_E) / light_speed
-            curr_E = [x.real for x in curr_E]
-            curr_B = [x.real for x in curr_B]
-            row.append((electric_constant * (curr_E[0]**2 + curr_E[1]**2)+ curr_B[2]**2 / magnetic_constant) / 2)
-        es.append(row)
-    return np.array(es)
 
 
 def get_discretized_init_wave_function():
@@ -235,15 +213,15 @@ def update_plot(frame_number):
     ax.set_xlabel("x")
     ax.set_ylabel("y")
     ax.invert_xaxis()
-    propagate_wave(steps=1)
+    propagate_wave(steps=2)
     dis = wave2energe(current_wave)
     ax.plot_surface(xs, ys, dis, cmap="coolwarm")
     # es = energy_density(0)[::display_size_step, ::display_size_step]
     # ax.plot_surface(xs, ys, es, cmap="coolwarm")
-    print(frame_number)
+    print("{} : {} : {}".format(frame_number, ax.elev, ax.azim))
 
-# Writer = animation.writers['ffmpeg']
-# writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
+Writer = animation.writers['ffmpeg']
+writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
 
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
@@ -260,8 +238,10 @@ def short_proj():
   return np.dot(Axes3D.get_proj(ax), scale)
 
 ax.get_proj=short_proj
+ax.elev = 75
+ax.azim = -90
 
-ani = FuncAnimation(fig, update_plot, num_of_frames, interval=10, repeat=False)
-# ani.save('wave.mp4', writer=writer)
+ani = FuncAnimation(fig, update_plot, num_of_frames, interval=1, repeat=False)
+ani.save('maxwell_2d.mp4', writer=writer)
 
-plt.show()
+# plt.show()
