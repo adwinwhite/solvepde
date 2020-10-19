@@ -3,6 +3,8 @@ import scipy.special
 import cmath
 import math
 
+import multiprocessing as mp
+
 
 import matplotlib
 # matplotlib.use("Agg")
@@ -20,7 +22,7 @@ from sparse_dot_mkl import dot_product_mkl
 
 
 
-grid_size = (400, 400)
+grid_size = (200, 200)
 light_speed = 3 * 10**8                     # can change smoothness of surface and cause the wave really move and inital wave is normal
 electric_constant = 8.854 * 10**(-12)
 magnetic_constant = 1.256 * 10**(-6)
@@ -29,7 +31,7 @@ magnetic_constant = 1.256 * 10**(-6)
 # magnetic_constant = 1
 mesh_step = 0.1                               # can change number of summits. 0.1 is good
 num_of_frames = 10000
-time_step = 0.0000000001
+time_step = 0.00000000004
 electric_direction = np.array((0, 1, 0))
 k = np.array((1, 0, 0))
 E_0 = 10
@@ -111,9 +113,9 @@ def flatten_hamiltionian(i, j):
     rows[0] /= electric_coeff_sqrt * magnetic_coeff_sqrt * 2 * mesh_step
 
     if i + 1 <= grid_size[0]:
-        rows[1][j][i + 1][2] = 1
+        rows[1][j][i + 1][2] = -1
     if i - 1 >= 0:
-        rows[1][j][i - 1][2] = -1
+        rows[1][j][i - 1][2] = 1
     rows[1] /= electric_coeff_sqrt * magnetic_coeff_sqrt * 2 * mesh_step
 
     if j + 1 <= grid_size[1]:
@@ -128,14 +130,18 @@ def flatten_hamiltionian(i, j):
 
     return sparse.vstack([sparse.csr_matrix(row.flatten()) for row in rows])
 
-
+def flatten_hamiltionian_row(j):
+    h_rows = [flatten_hamiltionian(i, j) for i in range(grid_size[0] + 1)]
+    return sparse.vstack(h_rows)
 
 def get_hamiltonian():
-    hamiltonian = []
-    for j in range(grid_size[1] + 1):
-        for i in range(grid_size[0] + 1):
-            hamiltonian.append(flatten_hamiltionian(i, j))
-        print(j)
+    pool = mp.Pool(mp.cpu_count())
+    hamiltonian = pool.map(flatten_hamiltionian_row, range(grid_size[1] + 1))
+    # for j in range(grid_size[1] + 1):
+    #     for i in range(grid_size[0] + 1):
+    #         hamiltonian.append(flatten_hamiltionian(i, j))
+    #     print(j)
+    pool.close()
     return sparse.vstack(hamiltonian)
 
 
@@ -255,7 +261,7 @@ def short_proj():
 
 ax.get_proj=short_proj
 
-ani = FuncAnimation(fig, update_plot, num_of_frames, interval=1000, repeat=False)
+ani = FuncAnimation(fig, update_plot, num_of_frames, interval=10, repeat=False)
 # ani.save('wave.mp4', writer=writer)
 
 plt.show()

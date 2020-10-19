@@ -20,22 +20,22 @@ from sparse_dot_mkl import dot_product_mkl
 
 
 
-grid_size = (1600, 1600)
+grid_size = (400, 800)
 light_speed = 3 * 10**8                     # can change smoothness of surface and cause the wave really move and inital wave is normal
 electric_constant = 8.854 * 10**(-12)
 magnetic_constant = 1.256 * 10**(-6)
 # light_speed = 1                               # can change smoothness of surface
 # electric_constant = 1
 # magnetic_constant = 1
-mesh_step = 0.1                               # can change number of summits. 0.1 is good
+mesh_step = 0.01                               # can change number of summits. 0.1 is good
 num_of_frames = 10000
-time_step = 0.000000001
+time_step = 0.00000000004
 electric_direction = np.array((0, 1, 0))
 k = np.array((1, 0, 0))
 E_0 = 10
 allowed_error = 10**(-13)
 max_order_of_chebyshev_poly = 100000
-display_size_step = 2
+display_size_step = 4
 
 
 free_plane = np.array([-grid_size[0] / 2, -grid_size[1] / 2, grid_size[0] / 2, grid_size[1] /2]) * mesh_step
@@ -187,7 +187,7 @@ def propagate_wave(steps=1):
         # current_wave = normalize_wave(evolution_operator.dot(fake_border(current_wave)))
         # current_wave = normalize_wave(apply_damping(evolution_operator.dot(current_wave), damping_factor=0.9, border_size=6))
         # current_wave = normalize_wave(evolution_operator.dot(current_wave))
-        current_wave = apply_damping(normalize_wave(dot_product_mkl(evolution_operator, current_wave)), damping_factor=0.0, border_size=int(0.2 * grid_size[0]))
+        current_wave = apply_damping(normalize_wave(dot_product_mkl(evolution_operator, current_wave)), damping_factor=0.0, border_size=0)
     return current_wave
 
 def wave2energe(wave):
@@ -237,7 +237,7 @@ ax = fig.add_subplot(111)
 #
 # ax.get_proj=short_proj
 
-ani = FuncAnimation(fig, update_plot, num_of_frames, interval=1000, repeat=False)
+ani = FuncAnimation(fig, update_plot, num_of_frames, interval=1000/60, repeat=False)
 # ani.save('wave.mp4', writer=writer)
 
 plt.show()
