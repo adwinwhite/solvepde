@@ -20,7 +20,7 @@ from sparse_dot_mkl import dot_product_mkl
 
 
 
-grid_size = (400, 400)
+grid_size = (1600, 1600)
 light_speed = 3 * 10**8                     # can change smoothness of surface and cause the wave really move and inital wave is normal
 electric_constant = 8.854 * 10**(-12)
 magnetic_constant = 1.256 * 10**(-6)
@@ -29,7 +29,7 @@ magnetic_constant = 1.256 * 10**(-6)
 # magnetic_constant = 1
 mesh_step = 0.1                               # can change number of summits. 0.1 is good
 num_of_frames = 10000
-time_step = 0.0000000001
+time_step = 0.000000001
 electric_direction = np.array((0, 1, 0))
 k = np.array((1, 0, 0))
 E_0 = 10
@@ -42,7 +42,7 @@ free_plane = np.array([-grid_size[0] / 2, -grid_size[1] / 2, grid_size[0] / 2, g
 free_plane_length = (grid_size[0] * mesh_step, grid_size[1] * mesh_step)
 packet_center = (0, 0)
 packet_size = (0.06875 * free_plane_length[0], 0.05 * free_plane_length[1], 0.05 * free_plane_length[1])
-operator_size = (grid_size[0] + 1) * (grid_size[1] + 1) * 3
+operator_size = (grid_size[0] + 1) * 2
 
 electric_coeff_sqrt = math.sqrt(electric_constant)
 magnetic_coeff_sqrt = math.sqrt(magnetic_constant)
@@ -62,69 +62,38 @@ def E(x, y, z):
 def B(x, y, z):
     return np.cross(k_direction, E(x, y, z)) / light_speed
 
-def energy_density(t):
-    xs = np.linspace(free_plane[0], free_plane[2], grid_size[0] + 1)
-    ys = np.linspace(free_plane[1], free_plane[3], grid_size[1] + 1)
-    # es = [[((electric_constant * E_z(x, y, t)**2 + magnetic_constant * (H_x(x, y, t)**2 + H_y((x, y, t)**2))) / 2) for x in xs] for y in ys]
-    es = []
-    for y in ys:
-        row = []
-        for x in xs:
-            # curr_E = [x.real for x in E(x, y, 0)]
-            # curr_B = [x.real for x in B(x, y, 0)]
-            curr_E = E(x, y, 0)
-            # print(curr_E)
-            curr_B = np.cross(k_direction, curr_E) / light_speed
-            curr_E = [x.real for x in curr_E]
-            curr_B = [x.real for x in curr_B]
-            row.append((electric_constant * (curr_E[0]**2 + curr_E[1]**2)+ curr_B[2]**2 / magnetic_constant) / 2)
-        es.append(row)
-    return np.array(es)
 
 
 def get_discretized_init_wave_function():
     xs = np.linspace(free_plane[0], free_plane[2], grid_size[0] + 1)
-    ys = np.linspace(free_plane[1], free_plane[3], grid_size[1] + 1)
     es = np.empty((operator_size))
     i = 0
-    for y in ys:
-        for x in xs:
-            curr_E = E(x, y, 0)
-            curr_B = np.cross(k_direction, curr_E) / light_speed
-            curr_Y = [x.real * electric_coeff_sqrt for x in curr_E]
-            curr_X = [x.real / magnetic_coeff_sqrt for x in curr_B]
-            es[i * 3] = curr_Y[0]
-            es[i * 3 + 1] = curr_Y[1]
-            es[i * 3 + 2] = curr_X[2]
-            i += 1
+    for x in xs:
+        curr_E = E(x, 0, 0)
+        curr_B = np.cross(k_direction, curr_E) / light_speed
+        curr_Y = [x.real * electric_coeff_sqrt for x in curr_E]
+        curr_X = [x.real / magnetic_coeff_sqrt for x in curr_B]
+        es[i * 2] = curr_X[2]
+        es[i * 2 + 1] = curr_Y[1]
+        i += 1
     return es
 
 
 
 
-def flatten_hamiltionian(i, j):
-    rows = [np.zeros((grid_size[1] + 1, grid_size[0] + 1, 3)) for m in range(3)]
-    if j + 1 <= grid_size[1]:
-        rows[0][j + 1][i][2] = 1
-    if j - 1 >= 0:
-        rows[0][j - 1][i][2] = -1
-    rows[0] /= electric_coeff_sqrt * magnetic_coeff_sqrt * 2 * mesh_step
+def flatten_hamiltionian(i):
+    rows = [np.zeros((grid_size[0] + 1, 2)) for m in range(2)]
+    if i + 1 <= grid_size[0]:
+        rows[0][i + 1][1] = 1
+    if i - 1 >= 0:
+        rows[0][i - 1][1] = -1
+    rows[0] /= -electric_coeff_sqrt * magnetic_coeff_sqrt * 2 * mesh_step
 
     if i + 1 <= grid_size[0]:
-        rows[1][j][i + 1][2] = 1
+        rows[1][i + 1][0] = 1
     if i - 1 >= 0:
-        rows[1][j][i - 1][2] = -1
-    rows[1] /= electric_coeff_sqrt * magnetic_coeff_sqrt * 2 * mesh_step
-
-    if j + 1 <= grid_size[1]:
-        rows[2][j + 1][i][0] = 1
-    if j - 1 >= 0:
-        rows[2][j - 1][i][0] = -1
-    if i + 1 <= grid_size[0]:
-        rows[2][j][i + 1][1] = -1
-    if i - 1 >= 0:
-        rows[2][j][i - 1][1] = 1
-    rows[2] /= electric_coeff_sqrt * magnetic_coeff_sqrt * 2 * mesh_step
+        rows[1][i - 1][0] = -1
+    rows[1] /= -electric_coeff_sqrt * magnetic_coeff_sqrt * 2 * mesh_step
 
     return sparse.vstack([sparse.csr_matrix(row.flatten()) for row in rows])
 
@@ -132,10 +101,9 @@ def flatten_hamiltionian(i, j):
 
 def get_hamiltonian():
     hamiltonian = []
-    for j in range(grid_size[1] + 1):
-        for i in range(grid_size[0] + 1):
-            hamiltonian.append(flatten_hamiltionian(i, j))
-        print(j)
+    for i in range(grid_size[0] + 1):
+        hamiltonian.append(flatten_hamiltionian(i))
+        print(i)
     return sparse.vstack(hamiltonian)
 
 
@@ -188,10 +156,24 @@ def get_evolution_operator_one_timestep():
     return sparse.csr_matrix(evolution_operator).real
 
 def normalize_wave(wave):
-    unflattened = np.reshape(wave, ((grid_size[1] + 1) * (grid_size[0] + 1), 3))
-    integral = sum([np.linalg.norm(v)**2 for v in unflattened]) / 2 * mesh_step**2
+    unflattened = np.reshape(wave, (grid_size[0] + 1, 2))
+    integral = sum([np.linalg.norm(v)**2 for v in unflattened]) / 2 * mesh_step
     factor = math.sqrt(1/integral)
     return wave * factor
+
+def apply_damping(wave, damping_factor=1.0, border_size=1):
+    # factors
+    factors = []
+    for i in range(border_size):
+        # factors.append(1.0 - damping_factor * time_step * (1 - math.sin(math.pi * i / 2 / border_size)))
+        factors.append(damping_factor * math.sin(math.pi * i / 2 / border_size))
+    # left
+    for i in range(border_size):
+        wave[i] *= factors[i]
+    # right
+    for i in range(border_size):
+        wave[-1-i] *= factors[i]
+    return wave
 
 evolution_operator = get_evolution_operator_one_timestep()
 evolution_operator.data = np.ascontiguousarray(evolution_operator.data)          # dot_product_mkl requires contiguous data
@@ -205,20 +187,20 @@ def propagate_wave(steps=1):
         # current_wave = normalize_wave(evolution_operator.dot(fake_border(current_wave)))
         # current_wave = normalize_wave(apply_damping(evolution_operator.dot(current_wave), damping_factor=0.9, border_size=6))
         # current_wave = normalize_wave(evolution_operator.dot(current_wave))
-        current_wave = normalize_wave(dot_product_mkl(evolution_operator, current_wave))
+        current_wave = apply_damping(normalize_wave(dot_product_mkl(evolution_operator, current_wave)), damping_factor=0.0, border_size=int(0.2 * grid_size[0]))
     return current_wave
 
 def wave2energe(wave):
-    unflattened = np.reshape(wave, (grid_size[1] + 1, grid_size[0] + 1, 3))[::display_size_step, ::display_size_step, ::]
+    unflattened = np.reshape(wave, (grid_size[0] + 1, 2))[::display_size_step, ::]
     # print(unflattened.shape)
-    dis = np.array([[np.linalg.norm(v)**2 for v in unflattened[j]] for j in range(int(grid_size[1] / display_size_step) + 1)]) * 0.5
+    # dis = np.array([[np.linalg.norm(v)**2 for v in unflattened[j]] for j in range(int(grid_size[1] / display_size_step) + 1)]) * 0.5
+    dis = [np.linalg.norm(v)**2 / 2 for v in unflattened]
     return dis
 
 
 
 xs = np.linspace(free_plane[0], free_plane[2], int(grid_size[0] / display_size_step) + 1)
-ys = np.linspace(free_plane[1], free_plane[3], int(grid_size[1] / display_size_step) + 1)
-xs, ys = np.meshgrid(xs, ys)
+
 
 # draw the figure
 def update_plot(frame_number):
@@ -228,10 +210,10 @@ def update_plot(frame_number):
     # ax.set_ylim(0, free_plane_length[1])
     ax.set_xlabel("x")
     ax.set_ylabel("y")
-    ax.invert_xaxis()
+    # ax.invert_xaxis()
     propagate_wave(steps=1)
     dis = wave2energe(current_wave)
-    ax.plot_surface(xs, ys, dis, cmap="coolwarm")
+    ax.plot(xs, dis)
     # es = energy_density(0)[::display_size_step, ::display_size_step]
     # ax.plot_surface(xs, ys, es, cmap="coolwarm")
     print(frame_number)
@@ -240,20 +222,20 @@ def update_plot(frame_number):
 # writer = Writer(fps=15, metadata=dict(artist='Me'), bitrate=1800)
 
 fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
+ax = fig.add_subplot(111)
 
-x_scale=1
-y_scale=1
-z_scale=1
-
-scale=np.diag([x_scale, y_scale, z_scale, 1.0])
-scale=scale*(1.0/scale.max())
-scale[3,3]=1.0
-
-def short_proj():
-  return np.dot(Axes3D.get_proj(ax), scale)
-
-ax.get_proj=short_proj
+# x_scale=1
+# y_scale=1
+# z_scale=1
+#
+# scale=np.diag([x_scale, y_scale, z_scale, 1.0])
+# scale=scale*(1.0/scale.max())
+# scale[3,3]=1.0
+#
+# def short_proj():
+#   return np.dot(Axes3D.get_proj(ax), scale)
+#
+# ax.get_proj=short_proj
 
 ani = FuncAnimation(fig, update_plot, num_of_frames, interval=1000, repeat=False)
 # ani.save('wave.mp4', writer=writer)
