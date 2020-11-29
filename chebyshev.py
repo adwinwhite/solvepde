@@ -25,7 +25,7 @@ packet_width_x = 0.05
 packet_width_y = 0.1
 direction_vector = 100
 time_step = 0.08
-num_of_frames = 360
+num_of_frames = 90
 max_order_of_chebyshev_poly = 100000
 allowed_error = 10**(-13)
 mesh_step = 1
@@ -207,7 +207,7 @@ def update_plot(frame_number):
     ax.invert_xaxis()
     # ax.plot_surface(xs, ys, ps, cmap="Dark2")
     # dis = np.reshape([abs(x)**2 for x in propagate_wave(steps=20)], (grid_size[1] + 1, grid_size[0] + 1))
-    dis = np.abs(np.reshape(propagate_wave(steps=10), (grid_size[1] + 1, grid_size[0] + 1))[::display_size_step, ::display_size_step])**2
+    dis = np.abs(np.reshape(propagate_wave(steps=40), (grid_size[1] + 1, grid_size[0] + 1))[::display_size_step, ::display_size_step])**2
     # dis = np.reshape(propagate_wave(steps=20), (grid_size[1] + 1, grid_size[0] + 1))
     # propagate_wave(steps=20)
     # dis = np.reshape(current_wave, (grid_size[1] + 1, grid_size[0] + 1))[0:-1:grid_size]
@@ -234,6 +234,6 @@ def short_proj():
 ax.get_proj=short_proj
 
 ani = FuncAnimation(fig, update_plot, num_of_frames, interval=1)
-ani.save('wave.mp4', writer=writer)
+ani.save('schrodinger_2d.mp4', writer=writer)
 
 # plt.show()

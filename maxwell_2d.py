@@ -30,7 +30,7 @@ magnetic_constant = 1.256 * 10**(-6)
 # electric_constant = 1
 # magnetic_constant = 1
 mesh_step = 0.1                               # can change number of summits. 0.1 is good
-num_of_frames = 300
+num_of_frames = 75
 time_step = 0.00000000004
 electric_direction = np.array((0, 1, 0))
 k = np.array((1, 0, 0))
@@ -213,7 +213,7 @@ def update_plot(frame_number):
     ax.set_xlabel("x")
     ax.set_ylabel("y")
     ax.invert_xaxis()
-    propagate_wave(steps=2)
+    propagate_wave(steps=8)
     dis = wave2energe(current_wave)
     ax.plot_surface(xs, ys, dis, cmap="coolwarm")
     # es = energy_density(0)[::display_size_step, ::display_size_step]
