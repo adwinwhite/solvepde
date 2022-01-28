@@ -42,10 +42,12 @@ end
 
 function get_evolution_operator_onestep_forward(horizontal_size::Int64, vertical_size::Int64, timestep::Float64, allowed_error::Float64=10^(-13), max_order_of_chebyshev_poly::Int64=10000)
     H = get_hamiltonian(horizontal_size, vertical_size)
-    λ1, ϕ1 = eigs(H, nev=1, which=:LM)
-    max_eigenvalue = λ1[1]
-    λ2, ϕ2 = eigs(H, nev=1, which=:SM)
-    min_eigenvalue = λ2[1]
+    #  λ1, ϕ1 = eigs(H, nev=1, which=:LM)
+    #  max_eigenvalue = λ1[1]
+    max_eigenvalue = 10
+    #  λ2, ϕ2 = eigs(H, nev=1, which=:SM)
+    #  min_eigenvalue = λ2[1]
+    min_eigenvalue = -10
 
     operator_size = horizontal_size * vertical_size
     z = (max_eigenvalue - min_eigenvalue) * timestep / 2
@@ -89,7 +91,8 @@ function get_correlation(horizontal_size::Int64, vertical_size::Int64, timestep:
 end
 
 function get_dos(correlations::Array{Complex{Float64}, 1}, timestep::Float64)
-    windowed_corr = correlations .* Windows.hanning(length(correlations, convert(Int64, 0.05 * length(correlations)), true))
+    #  windowed_corr = correlations .* Windows.hanning(length(correlations), padding=floor(Int64, 0.05 * length(correlations)), zerophase=true)
+    windowed_corr = correlations .* Windows.hanning(length(correlations), padding=0, zerophase=true)
     g = fft(windowed_corr) * timestep
     w = [0:(length(correlations)/2-1); (-length(correlations)/2):-1] / length(correlations) * 2 * π / timestep / abs(t_n)
     return w, g
@@ -102,5 +105,5 @@ function draw_dos(horizontal_size::Int64, vertical_size::Int64, timestep::Float6
     # const
     corrs = get_correlation(horizontal_size, vertical_size, timestep, sample_size)
     w, g = get_dos(corrs, timestep)
-    display(plot(w, abs.(g)))
+    display(plot(w, abs.(g), seriestype = :scatter))
 end

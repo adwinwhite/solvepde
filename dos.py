@@ -171,3 +171,5 @@ def draw_dos(horizontal_size, vertical_size, timestep, sample_size):
     w, g = get_dos(corrs, 6., timestep)
     plt.scatter(w, np.abs(g))
     plt.show()
+
+draw_dos(128, 128, 1, 1024)
